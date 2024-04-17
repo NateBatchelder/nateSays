@@ -2,47 +2,68 @@
 #include <hd44780.h>
 #include <hd44780ioClass/hd44780_I2Cexp.h>
 
-// Initialize the LCD
-hd44780_I2Cexp lcd;
+const int modeSwitchPin = 12;
+const int buzzerPin = 10;  // Buzzer pin
+const int buttonPins[] = {2, 4, 6, 8};  // Buttons pin array
+const int ledPins[] = {3, 5, 7, 9};  // LEDs pin array
+const int numControls = 4;  // Number of button and LED pairs
 
-const int modeSwitchPin = 11; // SPDT switch pin (adjust as needed)
-int lives; // Lives based on game mode
-boolean gameMode = false; // false for Normal, true for Hard
+class SimonGame {
+private:
+    hd44780_I2Cexp lcd;
+    int lives; // Lives based on game mode
+    boolean lastModeState = false; // Store the last mode state
+    int currentModeState; // Current reading from the mode switch
+
+public:
+    void setup() {
+        pinMode(modeSwitchPin, INPUT_PULLUP);
+        lcd.begin(16, 2);
+        lcd.clear();
+        lcd.setCursor(3, 0);
+        lcd.print("Simon Says");
+        lastModeState = digitalRead(modeSwitchPin); // Initial mode state
+        updateDisplay();
+
+        // Initialize LEDs and buttons
+        for (int i = 0; i < numControls; ++i) {
+            pinMode(ledPins[i], OUTPUT);
+            pinMode(buttonPins[i], INPUT_PULLUP);
+        }
+        pinMode(buzzerPin, OUTPUT);
+    }
+
+    void loop() {
+        currentModeState = digitalRead(modeSwitchPin);
+        if (currentModeState != lastModeState) {
+            lastModeState = currentModeState; // Update the last mode state
+            updateDisplay(); // Update display based on new mode state
+        }
+        delay(100); // Delay to help with button debounce and stability
+    }
+
+    void updateDisplay() {
+        lcd.setCursor(0, 1);
+        if (lastModeState == LOW) {
+            lcd.print("Normal ");
+            lives = 5;
+        } else {
+            lcd.print("Hard   ");
+            lives = 3;
+        }
+        lcd.setCursor(11, 1);
+        lcd.print("L:");
+        lcd.print(lives);
+    }
+};
+
+
+SimonGame game; // Create an instance of SimonGame
 
 void setup() {
-  pinMode(modeSwitchPin, INPUT_PULLUP);
-  lcd.begin(16, 2); // Initialize LCD for 16 columns and 2 rows
-  lcd.clear();
-  lcd.setCursor(3, 0); // Set cursor to start position for centered text on the first line
-  lcd.print("Simon Says"); // Print static text on the first line
-  updateDisplay(); // Initial call to display the game mode and lives
+    game.setup(); // Call the setup method of the game instance
 }
 
 void loop() {
-  // Continuously check and update game mode and lives display
-  updateDisplay();
-  // Additional game logic here...
-  delay(100); // Delay to prevent overly rapid display updates
+    game.loop(); // Call the loop method of the game instance
 }
-
-void updateDisplay() {
-  // Read game mode from SPDT switch
-  gameMode = digitalRead(modeSwitchPin);
-
-  // Clear and set up the second line display
-  lcd.setCursor(0, 1); // Set cursor at the beginning of the second line
-  if(gameMode == LOW) {
-    lcd.print("Normal ");
-    lives = 5;
-  } else {
-    lcd.print("Hard   ");
-    lives = 3;
-  }
-
-  // Display the number of lives right-justified
-  lcd.setCursor(11, 1); // Position for displaying lives count
-  lcd.print("L:");
-  lcd.print(lives);
-}
-
-// Include any additional functions or game logic here as needed
