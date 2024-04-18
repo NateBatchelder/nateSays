@@ -31,10 +31,7 @@ private:
     hd44780_I2Cexp lcd;
 };
 
-SimonGame::SimonGame() : lcd(0x27, 16, 2) {  // Adjust 0x27 if different I2C address
-    lcd.begin(16, 2);
-    lcd.clear();
-    lcd.print("Simon Says");
+SimonGame::SimonGame() { 
     for (int i = 0; i < numControls; ++i) {
         pinMode(ledPins[i], OUTPUT);
         pinMode(buttonPins[i], INPUT_PULLUP);
@@ -42,6 +39,19 @@ SimonGame::SimonGame() : lcd(0x27, 16, 2) {  // Adjust 0x27 if different I2C add
     pinMode(buzzerPin, OUTPUT);
     pinMode(vibrationMotorPin, OUTPUT);
     randomSeed(analogRead(0));  // Seed for random number generator
+}
+
+void SimonGame::startGame() {
+    lcd.begin(16, 2); // Ensure LCD is initialized here instead of in the constructor
+    delay(50);        // Optional: delay to ensure LCD setup completes
+    lcd.clear();
+    lcd.print("Simon Says");
+
+    sequenceLength = 1;  // Start with one step in the sequence
+    for (int i = 0; i < sequenceLength; i++) {
+        sequence[i] = random(0, numControls);  // Generate random steps
+    }
+    displaySimonsSequence();  // Start the game by displaying the first sequence
 }
 
 void SimonGame::displaySimonsSequence() {
@@ -59,9 +69,13 @@ void SimonGame::checkUserInput() {
     while (inputIndex < sequenceLength) {
         for (int i = 0; i < numControls; i++) {
             if (digitalRead(buttonPins[i]) == LOW) {
+                Serial.print("Button Pressed: ");
+                Serial.println(i);
                 delay(50); // Basic debouncing
+                showLED(i, true);  // Ensure LED is turned on when button is pressed
+                delay (200); // short delay to ensure button is visable
                 if (i == sequence[inputIndex]) {
-                    playNote(buttonNotes[i], 200); // Feedback for correct input
+                    playNote(buttonNotes[i], 200); // Feedback for button press
                     inputIndex++;
                     if (inputIndex == sequenceLength) {
                         sequenceLength++; // Increase sequence length for next round
@@ -69,6 +83,7 @@ void SimonGame::checkUserInput() {
                         displaySimonsSequence();
                         return;
                     }
+                    showLED(i, false); // Turn off LED after validation
                 } else {
                     vibrateVibrator(500); // Incorrect input
                     updateDisplay(); // Show game over or error message
@@ -98,6 +113,16 @@ void SimonGame::playNote(int frequency, int duration) {
     noTone(buzzerPin);
 }
 
+void SimonGame::playChime() {
+    int chimeNotes[] = {262, 294, 330, 349}; // Example notes
+    int count = sizeof(chimeNotes) / sizeof(chimeNotes[0]);
+    int duration = 200; // Duration for each note
+    for (int i = 0; i < count; i++) {
+        playNote(chimeNotes[i], duration);
+        delay(100); // Delay between notes
+    }
+}
+
 void SimonGame::vibrateVibrator(int duration) {
     digitalWrite(vibrationMotorPin, HIGH);
     delay(duration);
@@ -107,9 +132,16 @@ void SimonGame::vibrateVibrator(int duration) {
 SimonGame game;  // Declare the SimonGame object globally
 
 void setup() {
-    game.startGame(
-      
-    ); // Start the game
+    pinMode(buzzerPin, OUTPUT);
+    pinMode(vibrationMotorPin, OUTPUT);
+    pinMode(modeSwitchPin, INPUT);
+    for (int i = 0; i < numControls; ++i) {
+        pinMode(ledPins[i], OUTPUT);
+        pinMode(buttonPins[i], INPUT_PULLUP);
+    }
+    randomSeed(analogRead(0));  // Seed for random number generator
+
+    game.startGame(); // Start the game
 }
 
 void loop() {
